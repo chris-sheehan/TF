@@ -17,16 +17,16 @@ ydata = np.array([img[2] for img in data])
 
 logger.info('Train Test Split...')
 train_x, test_x, train_y, test_y = train_test_split(Xdata, ydata)
-train_x = np.array(train_x[:10000])
-train_y = np.array(train_y[:10000])
-test_x = np.array(test_x[:10000])
-test_y = np.array(test_y[:10000])
+train_x = np.array(train_x[:500])
+train_y = np.array(train_y[:500])
+test_x = np.array(test_x[:500])
+test_y = np.array(test_y[:500])
 
 
-ytrain_sing = np.argmax(train_y, 1) == 0
-ytest_sing = np.argmax(test_y, 1) == 0
+ytrain_sing = np.argmax(train_y, 1)
+ytest_sing = np.argmax(test_y, 1)
 
-hm_epochs = 3
+hm_epochs = 5
 n_classes = 10
 batch_size = 128
 
@@ -59,6 +59,7 @@ def train_neural_network(x, y):
 	optimizer = tf.train.AdamOptimizer().minimize(cost)
 
 	with tf.Session() as sess:
+		# sess = tf.Session()
 		sess.run(tf.global_variables_initializer())
 
 		for epoch in range(hm_epochs):
@@ -81,14 +82,26 @@ def train_neural_network(x, y):
 
 		correct = tf.equal(tf.argmax(prediction, 1), tf.argmax(y,1))
 		accuracy = tf.reduce_mean(tf.cast(correct, 'float'))
-		accuracy_eval = accuracy.eval({x : test_x.reshape((-1, n_chunks, chunk_size)), y : test_y})
+		accuracy_eval = accuracy.eval({x : test_x.reshape((-1, n_chunks, chunk_size)), y : test_y}, session = sess)
 		print 'Accuracy:', accuracy_eval
 		logger.info('Accuracy: %s' % accuracy_eval)
 		yhat_test = np.argmax(sess.run(prediction, feed_dict = {x : test_x.reshape((-1, n_chunks, chunk_size)), y : test_y}), axis = 1)
-		logger.info('AUC: %.4f' % roc_auc_score(ytest_sing, yhat_test))
-		logger.info('Precision: %.4f' % precision_score(ytest_sing, yhat_test))
-		logger.info('Recall: %.4f' % recall_score(ytest_sing, yhat_test))
+		# logger.info('AUC: %.4f' % roc_auc_score(ytest_sing, yhat_test))
+		# logger.info('Precision: %.4f' % precision_score(ytest_sing, yhat_test))
+		# logger.info('Recall: %.4f' % recall_score(ytest_sing, yhat_test))
 		print confusion_matrix(ytest_sing, yhat_test), '\n'
+
+def y_specific_roc_auc(n, y, yhat):
+	pairs = list()
+	for y_, yhat_ in zip(y, yhat):
+		if (y_ == n) | (yhat_ == n):
+			pairs.append([y_==n, yhat_==n])
+	return pairs
+
+for n in range(10):
+	pairs = y_specific_roc_auc(n, ytest_sing, yhat_test)
+	print "%s : %.2f" % (n, roc_auc_score([_[0] for _ in pairs], [_[1] for _ in pairs]))
+
 
 if __name__ == '__main__':
 	train_neural_network(x, y)
